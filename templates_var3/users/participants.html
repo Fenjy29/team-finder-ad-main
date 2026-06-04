@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Участники{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/project_list.css' %}">
+<link rel="stylesheet" href="{% static 'css/participants.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="project-container">
+    <div class="project-header">
+        <div>
+            <h1 class="project-title">Участники платформы</h1>
+            <p class="project-subtitle">Познакомьтесь с участниками и найдите единомышленников</p>
+        </div>
+    </div>
+
+    {% if participants %}
+    <div class="participants-grid">
+        {% for participant in participants %}
+        <div class="participant-card">
+            <div class="participant-card-header">
+                {% if participant.avatar %}
+                    <img src="{{ participant.avatar.url }}" alt="Аватар участника" class="participant-avatar">
+                {% else %}
+                    <img src="{% static 'images/default-avatar.png' %}" alt="Аватар по умолчанию" class="participant-avatar">
+                {% endif %}
+            </div>
+            <div class="participant-info">
+                <h3 class="participant-name">{{ participant.name }} {{ participant.surname }}</h3>
+                <p class="participant-role">{{ participant.about|truncatechars:80 }}</p>
+            </div>
+            <div class="participant-card-footer">
+                <a href="/users/{{ participant.id }}" class="white-button">
+                    {% include 'includes/svg/eye.html' %} Посмотреть контакты
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    {% include 'includes/empty-project-card.html' with empty_title="Пока нет участников" empty_message="Зарегистрируйтесь, чтобы присоединиться к платформе" button_link="/users/register/" button_text="Зарегистрироваться" %}
+    {% endif %}
+
+    {% if participants.has_other_pages %}
+    <div class="pagination">
+        {% if participants.has_previous %}
+            <a href="?page={{ participants.previous_page_number }}" class="page-link">&laquo;</a>
+        {% endif %}
+        {% for num in participants.paginator.page_range %}
+            {% if participants.number == num %}
+                <span class="page-link active">{{ num }}</span>
+            {% elif num > participants.number|add:'-3' and num < participants.number|add:'3' %}
+                <a href="?page={{ num }}" class="page-link">{{ num }}</a>
+            {% endif %}
+        {% endfor %}
+        {% if participants.has_next %}
+            <a href="?page={{ participants.next_page_number }}" class="page-link">&raquo;</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

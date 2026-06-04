@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  lint-and-check:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: team_finder_test
+          POSTGRES_USER: team_finder
+          POSTGRES_PASSWORD: team_finder
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DJANGO_SECRET_KEY: ci-secret-key-not-for-production
+      DJANGO_DEBUG: "True"
+      POSTGRES_DB: team_finder_test
+      POSTGRES_USER: team_finder
+      POSTGRES_PASSWORD: team_finder
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+      TASK_VERSION: "3"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Check PEP 8 (flake8)
+        run: |
+          pip install flake8
+          flake8 . --max-line-length=100 --exclude=venv,migrations,staticfiles
+
+      - name: Run Django system checks
+        run: python manage.py check
+
+      - name: Run migrations
+        run: python manage.py migrate
+
+      - name: Run tests
+        run: python manage.py test
