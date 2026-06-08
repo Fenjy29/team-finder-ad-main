@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}{{ project.title }}{% endblock %}
+{% block title %}{{ project.name }}{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/project_details.css' %}">
@@ -59,7 +59,7 @@
             {% if user.id == project.owner.id %}
                 <a href="/projects/{{ project.id }}/edit" class="black-button">
                     {% include 'includes/svg/pen.html' %}
-                    Редактировать
+                    Редактировать проект
                 </a>
                 {% if project.status == "open" %}
                     <button class="black-button" id="complete-project-btn" data-id="{{ project.id }}">
@@ -67,7 +67,7 @@
                     </button>
                 {% endif %}
             {% else %}
-                {% if user.is_authenticated %}
+                {% if user.is_authenticated and project.status == "open" %}
                     <button id="participate-btn" class="black-button"
                             data-project="{{ project.id }}"
                             data-user-id="{{ request.user.id }}"
@@ -109,6 +109,7 @@
         </div>
     </div>
 
+    {% if request.user.id == project.owner.id %}
     <div class="project-participants-card">
     <h3>Участники проекта (<span id="participants-count" style="display:inline">{{ project.participants.all|length }}</span>)</h3>
     <div id="participants-list" class="participants-list">
@@ -133,6 +134,7 @@
         {% endfor %}
         </div>
     </div>
+    {% endif %}
 </div>
 {% endblock %}
 {% endwith %}

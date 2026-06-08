@@ -2,6 +2,7 @@ import json
 
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
+from django.db import IntegrityError
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
@@ -15,9 +16,10 @@ def project_list(request):
     qs = Project.objects.select_related("owner").prefetch_related("participants", "skills")
 
     if active_skill:
-        qs = qs.filter(skills__name__iexact=active_skill)
+        qs = qs.filter(skills__name__iexact=active_skill).distinct()
 
-    all_skills = Skill.objects.values_list("name", flat=True).order_by("name")
+    all_skills = Skill.objects.filter(projects__isnull=False).distinct().order_by("name")
+    active_skill_object = all_skills.filter(name__iexact=active_skill).first()
 
     paginator = Paginator(qs, 12)
     page_number = request.GET.get("page")
@@ -26,7 +28,7 @@ def project_list(request):
     return render(request, "projects/project_list.html", {
         "projects": projects,
         "all_skills": all_skills,
-        "active_skill": active_skill,
+        "active_skill": active_skill_object.name if active_skill_object else active_skill,
     })
 
 
@@ -79,7 +81,13 @@ def toggle_participate(request, project_id):
     user = request.user
     if user == project.owner:
         return JsonResponse(
-            {"status": "error", "message": "Владелец не может участвовать"}, status=400
+            {"status": "error", "message": "Владелец не может участвовать в своём проекте"},
+            status=400,
+        )
+    if project.status == Project.STATUS_CLOSED:
+        return JsonResponse(
+            {"status": "error", "message": "Нельзя присоединиться к завершённому проекту"},
+            status=400,
         )
 
     if user in project.participants.all():
@@ -107,9 +115,16 @@ def skill_add(request, project_id):
     if skill_id:
         skill = get_object_or_404(Skill, id=skill_id)
     elif name:
-        skill, _ = Skill.objects.get_or_create(name__iexact=name, defaults={"name": name})
+        if len(name) > Skill._meta.get_field("name").max_length:
+            return JsonResponse({"error": "Название навыка слишком длинное"}, status=400)
+        skill = Skill.objects.filter(name__iexact=name).first()
+        if skill is None:
+            try:
+                skill = Skill.objects.create(name=name)
+            except IntegrityError:
+                skill = Skill.objects.get(name__iexact=name)
     else:
-        return JsonResponse({"error": "skill_id or name required"}, status=400)
+        return JsonResponse({"error": "Укажите навык"}, status=400)
 
     project.skills.add(skill)
     return JsonResponse({"id": skill.id, "name": skill.name})
@@ -128,5 +143,5 @@ def skills_autocomplete(request):
     q = request.GET.get("q", "").strip()
     if not q:
         return JsonResponse([], safe=False)
-    skills = Skill.objects.filter(name__icontains=q).values("id", "name")[:10]
+    skills = Skill.objects.filter(name__icontains=q).values("id", "name").order_by("name")[:10]
     return JsonResponse(list(skills), safe=False)

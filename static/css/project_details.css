@@ -65,7 +65,7 @@
 .project-card-body {
     display: flex;
     flex-direction: column;
-    align-items: flex-stat;
+    align-items: flex-start;
     justify-content: space-between;
 }
 

@@ -36,13 +36,8 @@
     }
 
     const participateBtn = document.getElementById("participate-btn");
-    const participantsList = document.getElementById("participants-list");
-    const participantsCount = document.getElementById("participants-count");
-    if (participateBtn && participantsList && participantsCount) {
-      const userId = participateBtn.dataset.userId || null;
+    if (participateBtn) {
       const projectId = participateBtn.dataset.project;
-      const userName = participateBtn.dataset.userName || "";
-      const userAvatar = participateBtn.dataset.userAvatar || "";
 
       participateBtn.addEventListener("click", function(e) {
         e.preventDefault();
@@ -67,40 +62,8 @@
           if (data.participant) {
             participateBtn.textContent = "Отказаться от участия";
 
-            const noParticipants = document.getElementById("no-participants");
-            if (noParticipants) noParticipants.remove();
-
-            const a = document.createElement("a");
-            a.href = `/users/${userId}`;
-            a.id = `participant-${userId}`;
-            a.innerHTML = `
-              <div class="participant-item">
-                <img src="${userAvatar}" alt="Аватар" class="participant-avatar">
-                <div class="participant-info">
-                  <span class="participant-name">${userName}</span>
-                  <span class="participant-role">Участник</span>
-                </div>
-              </div>
-            `;
-            participantsList.appendChild(a);
-
-            participantsCount.textContent = parseInt(participantsCount.textContent) + 1;
-
           } else {
             participateBtn.textContent = "Участвовать";
-
-            const el = document.getElementById(`participant-${userId}`);
-            if (el) el.remove();
-
-            const newCount = parseInt(participantsCount.textContent) - 1;
-            participantsCount.textContent = newCount;
-
-            if (newCount === 0) {
-              const p = document.createElement("p");
-              p.id = "no-participants";
-              p.textContent = "Пока нет участников";
-              participantsList.appendChild(p);
-            }
           }
         })
         .catch(err => {

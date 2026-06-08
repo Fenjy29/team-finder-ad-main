@@ -156,7 +156,7 @@
     border: 1px solid #ddd;
     border-radius: 12px;
     padding: 20px;
-    width: calc(100% - 36spx);
+    width: calc(100% - 36px);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
     flex-direction: column;
     justify-content: space-between;

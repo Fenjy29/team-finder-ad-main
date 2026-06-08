@@ -156,7 +156,8 @@ class Command(BaseCommand):
 
         self.stdout.write("Creating users...")
         users = {}
-        for user_data in USERS:
+        for source_user_data in USERS:
+            user_data = source_user_data.copy()
             is_staff = user_data.pop("is_staff", False)
             is_superuser = user_data.pop("is_superuser", False)
             password = user_data.pop("password")

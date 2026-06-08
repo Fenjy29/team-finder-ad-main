@@ -1,4 +1,4 @@
-// Profile skills UI logic
+// Project skills UI logic
 (function(){
   document.addEventListener("DOMContentLoaded", () => {
     const container = document.getElementById("skills-container");
@@ -32,7 +32,10 @@
       }
       t = setTimeout(async () => {
         const res = await fetch(`/projects/skills/?q=${encodeURIComponent(q)}`);
-        if (!res.ok) return;
+        if (!res.ok) {
+          showError("Не удалось загрузить список навыков");
+          return;
+        }
         const data = await res.json();
 
         suggestions.innerHTML = "";
@@ -106,6 +109,14 @@
         });
         if (res.ok) {
           chip.remove();
+          if (!container.querySelector(".skill-chip")) {
+            const empty = document.createElement("span");
+            empty.className = "skill-empty";
+            empty.textContent = "Навыки не указаны";
+            container.insertBefore(empty, addBtn);
+          }
+        } else {
+          showError("Не удалось удалить навык");
         }
       }
     });
@@ -122,6 +133,8 @@
       if (res.ok) {
         const skill = await res.json();
         appendChip(skill.id, skill.name);
+      } else {
+        showError("Не удалось добавить навык");
       }
     }
 
@@ -137,6 +150,8 @@
       if (res.ok) {
         const skill = await res.json();
         appendChip(skill.id, skill.name);
+      } else {
+        showError("Не удалось добавить навык");
       }
     }
 
@@ -146,12 +161,23 @@
       const chip = document.createElement("span");
       chip.className = "skill-chip";
       chip.dataset.id = id;
-      chip.innerHTML = `${name} <button type="button" class="remove-skill-btn" aria-label="Удалить" title="Удалить">×</button>`;
+      chip.appendChild(document.createTextNode(`${name} `));
+      const removeButton = document.createElement("button");
+      removeButton.type = "button";
+      removeButton.className = "remove-skill-btn";
+      removeButton.setAttribute("aria-label", "Удалить");
+      removeButton.title = "Удалить";
+      removeButton.textContent = "×";
+      chip.appendChild(removeButton);
 
       container.insertBefore(chip, addBtn);
 
       const empty = container.querySelector(".skill-empty");
       if (empty) empty.remove();
+    }
+
+    function showError(message) {
+      if (window.toast) window.toast(message, { type: "error" });
     }
 
     function getCookie(name) {
