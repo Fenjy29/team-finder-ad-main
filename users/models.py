@@ -1,31 +1,22 @@
 import uuid
-from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
+
+from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.db import models
 
+from .managers import UserManager
 
-class UserManager(BaseUserManager):
-    def create_user(self, email, password=None, **extra_fields):
-        if not email:
-            raise ValueError("Email обязателен")
-        email = self.normalize_email(email)
-        user = self.model(email=email, **extra_fields)
-        user.set_password(password)
-        user.save(using=self._db)
-        return user
 
-    def create_superuser(self, email, password=None, **extra_fields):
-        extra_fields.setdefault("is_staff", True)
-        extra_fields.setdefault("is_superuser", True)
-        return self.create_user(email, password, **extra_fields)
+USER_NAME_MAX_LENGTH = 100
+PHONE_MAX_LENGTH = 30
 
 
 class User(AbstractBaseUser, PermissionsMixin):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(unique=True)
-    name = models.CharField(max_length=100)
-    surname = models.CharField(max_length=100)
+    name = models.CharField(max_length=USER_NAME_MAX_LENGTH)
+    surname = models.CharField(max_length=USER_NAME_MAX_LENGTH)
     about = models.TextField(blank=True, default="")
-    phone = models.CharField(max_length=30, blank=True, default="")
+    phone = models.CharField(max_length=PHONE_MAX_LENGTH, blank=True, default="")
     github_url = models.URLField(blank=True, default="")
     avatar = models.ImageField(upload_to="avatars/", blank=True, null=True)
     date_joined = models.DateTimeField(auto_now_add=True)

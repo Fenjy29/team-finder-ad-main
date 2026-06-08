@@ -1,19 +1,22 @@
 from django.conf import settings
 from django.db import models
 
+SKILL_NAME_MAX_LENGTH = 100
+PROJECT_NAME_MAX_LENGTH = 200
+
 
 class Skill(models.Model):
-    name = models.CharField(max_length=100, unique=True)
+    name = models.CharField(max_length=SKILL_NAME_MAX_LENGTH, unique=True)
 
     def save(self, *args, **kwargs):
         self.name = self.name.strip()
         super().save(*args, **kwargs)
 
-    def __str__(self):
-        return self.name
-
     class Meta:
         ordering = ["name"]
+
+    def __str__(self):
+        return self.name
 
 
 class Project(models.Model):
@@ -24,7 +27,7 @@ class Project(models.Model):
         (STATUS_CLOSED, "Закрыт"),
     ]
 
-    name = models.CharField(max_length=200)
+    name = models.CharField(max_length=PROJECT_NAME_MAX_LENGTH)
     description = models.TextField(blank=True, default="")
     github_url = models.URLField(blank=True, default="")
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_OPEN)
@@ -41,8 +44,8 @@ class Project(models.Model):
     )
     skills = models.ManyToManyField(Skill, related_name="projects", blank=True)
 
-    def __str__(self):
-        return self.name
-
     class Meta:
         ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.name

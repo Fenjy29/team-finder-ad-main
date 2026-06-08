@@ -1,14 +1,17 @@
 import json
+from http import HTTPStatus
 
 from django.contrib.auth.decorators import login_required
-from django.core.paginator import Paginator
-from django.db import IntegrityError
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+from team_finder.utils import paginate_queryset
+
 from .forms import ProjectForm
 from .models import Project, Skill
+
+SKILLS_AUTOCOMPLETE_LIMIT = 10
 
 
 def project_list(request):
@@ -21,9 +24,7 @@ def project_list(request):
     all_skills = Skill.objects.filter(projects__isnull=False).distinct().order_by("name")
     active_skill_object = all_skills.filter(name__iexact=active_skill).first()
 
-    paginator = Paginator(qs, 12)
-    page_number = request.GET.get("page")
-    projects = paginator.get_page(page_number)
+    projects = paginate_queryset(request, qs)
 
     return render(request, "projects/project_list.html", {
         "projects": projects,
@@ -68,7 +69,10 @@ def edit_project(request, project_id):
 @login_required
 @require_POST
 def complete_project(request, project_id):
-    project = get_object_or_404(Project, id=project_id, owner=request.user)
+    project = Project.objects.filter(id=project_id, owner=request.user).first()
+    if project is None:
+        return JsonResponse({"error": "Проект не найден"}, status=HTTPStatus.NOT_FOUND)
+
     project.status = Project.STATUS_CLOSED
     project.save(update_fields=["status"])
     return JsonResponse({"status": "ok"})
@@ -77,54 +81,62 @@ def complete_project(request, project_id):
 @login_required
 @require_POST
 def toggle_participate(request, project_id):
-    project = get_object_or_404(Project, id=project_id)
+    project = Project.objects.filter(id=project_id).first()
+    if project is None:
+        return JsonResponse({"error": "Проект не найден"}, status=HTTPStatus.NOT_FOUND)
+
     user = request.user
     if user == project.owner:
         return JsonResponse(
             {"status": "error", "message": "Владелец не может участвовать в своём проекте"},
-            status=400,
+            status=HTTPStatus.BAD_REQUEST,
         )
     if project.status == Project.STATUS_CLOSED:
         return JsonResponse(
             {"status": "error", "message": "Нельзя присоединиться к завершённому проекту"},
-            status=400,
+            status=HTTPStatus.BAD_REQUEST,
         )
 
-    if user in project.participants.all():
+    is_participant = project.participants.filter(id=user.id).exists()
+    if is_participant:
         project.participants.remove(user)
-        participating = False
     else:
         project.participants.add(user)
-        participating = True
 
-    return JsonResponse({"status": "ok", "participant": participating})
+    return JsonResponse({"status": "ok", "participant": not is_participant})
 
 
 @login_required
 @require_POST
 def skill_add(request, project_id):
-    project = get_object_or_404(Project, id=project_id, owner=request.user)
+    project = Project.objects.filter(id=project_id, owner=request.user).first()
+    if project is None:
+        return JsonResponse({"error": "Проект не найден"}, status=HTTPStatus.NOT_FOUND)
+
     try:
         data = json.loads(request.body)
     except (json.JSONDecodeError, ValueError):
-        return JsonResponse({"error": "Invalid JSON"}, status=400)
+        return JsonResponse({"error": "Invalid JSON"}, status=HTTPStatus.BAD_REQUEST)
 
     skill_id = data.get("skill_id")
     name = data.get("name", "").strip()
 
     if skill_id:
-        skill = get_object_or_404(Skill, id=skill_id)
+        skill = Skill.objects.filter(id=skill_id).first()
+        if skill is None:
+            return JsonResponse({"error": "Навык не найден"}, status=HTTPStatus.NOT_FOUND)
     elif name:
         if len(name) > Skill._meta.get_field("name").max_length:
-            return JsonResponse({"error": "Название навыка слишком длинное"}, status=400)
-        skill = Skill.objects.filter(name__iexact=name).first()
-        if skill is None:
-            try:
-                skill = Skill.objects.create(name=name)
-            except IntegrityError:
-                skill = Skill.objects.get(name__iexact=name)
+            return JsonResponse(
+                {"error": "Название навыка слишком длинное"},
+                status=HTTPStatus.BAD_REQUEST,
+            )
+        skill, _ = Skill.objects.get_or_create(
+            name__iexact=name,
+            defaults={"name": name},
+        )
     else:
-        return JsonResponse({"error": "Укажите навык"}, status=400)
+        return JsonResponse({"error": "Укажите навык"}, status=HTTPStatus.BAD_REQUEST)
 
     project.skills.add(skill)
     return JsonResponse({"id": skill.id, "name": skill.name})
@@ -133,15 +145,25 @@ def skill_add(request, project_id):
 @login_required
 @require_POST
 def skill_remove(request, project_id, skill_id):
-    project = get_object_or_404(Project, id=project_id, owner=request.user)
-    skill = get_object_or_404(Skill, id=skill_id)
+    project = Project.objects.filter(id=project_id, owner=request.user).first()
+    if project is None:
+        return JsonResponse({"error": "Проект не найден"}, status=HTTPStatus.NOT_FOUND)
+
+    skill = Skill.objects.filter(id=skill_id).first()
+    if skill is None:
+        return JsonResponse({"error": "Навык не найден"}, status=HTTPStatus.NOT_FOUND)
+
     project.skills.remove(skill)
     return JsonResponse({"status": "ok"})
 
 
 def skills_autocomplete(request):
-    q = request.GET.get("q", "").strip()
-    if not q:
+    query = request.GET.get("q", "").strip()
+    if not query:
         return JsonResponse([], safe=False)
-    skills = Skill.objects.filter(name__icontains=q).values("id", "name").order_by("name")[:10]
+    skills = (
+        Skill.objects.filter(name__icontains=query)
+        .values("id", "name")
+        .order_by("name")[:SKILLS_AUTOCOMPLETE_LIMIT]
+    )
     return JsonResponse(list(skills), safe=False)

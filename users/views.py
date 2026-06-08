@@ -1,7 +1,8 @@
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
-from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
+
+from team_finder.utils import paginate_queryset
 
 from .forms import ChangePasswordForm, EditProfileForm, LoginForm, RegistrationForm
 from .models import User
@@ -67,7 +68,5 @@ def change_password(request):
 
 def users_list(request):
     qs = User.objects.all().order_by("-date_joined")
-    paginator = Paginator(qs, 12)
-    page_number = request.GET.get("page")
-    participants = paginator.get_page(page_number)
+    participants = paginate_queryset(request, qs)
     return render(request, "users/participants.html", {"participants": participants})
